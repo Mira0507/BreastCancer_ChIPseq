@@ -51,6 +51,7 @@ bm_siGATA3 <- ImportBam_fn("siGATA_ER_E2_r3_SRX176861_sort.bam", chrNum)
 
 library(Gviz)
 library(TxDb.Hsapiens.UCSC.hg19.knownGene)
+library(GenomicRanges)
 
 # Importing blacklisted region
 BlackList <- import.bed("dukeExcludeRegions.bed")
@@ -180,15 +181,14 @@ RemoveBlacklist_fn <- function(peaks) {
         return(clean_peaks)
 }
 
-
 # Updating peaks
-peakList <- list(pk_siNT1, pk_siNT2, pk_siNT3,
-                 pk_siGATA1, pk_siGATA2, pk_siGATA3)
+pk_siNT1 <- RemoveBlacklist_fn(pk_siNT1)
+pk_siNT2 <- RemoveBlacklist_fn(pk_siNT2)
+pk_siNT3 <- RemoveBlacklist_fn(pk_siNT3)
+pk_siGATA1 <- RemoveBlacklist_fn(pk_siGATA1)
+pk_siGATA2 <- RemoveBlacklist_fn(pk_siGATA2)
+pk_siGATA3 <- RemoveBlacklist_fn(pk_siGATA3)
 
-
-for (x in peakList) {
-        x <- RemoveBlacklist_fn(x)
-}
 
 
 
@@ -317,8 +317,9 @@ total_coverage <- rbind(cover_siNI1,
                         cover_siGATA1,
                         cover_siGATA2,
                         cover_siGATA3) %>% 
-        mutate(sampleID = factor(sampleID),
-               levels = samples)
+        mutate(sampleID = factor(sampleID, 
+                                 levels = samples))
+
 
 coverage_plot <- 
         ggplot(total_coverage, 
@@ -332,7 +333,7 @@ coverage_plot <-
 
 coverage_plot_LargerMag <- coverage_plot + 
         ylim(c(0, 300))
-        
+
 
 
 ################################## Comparing differential binding ##################################  
