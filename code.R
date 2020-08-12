@@ -791,3 +791,9 @@ library(formattable)
 Combined_EnrichPath_Table_disp <- 
         formattable(Combined_EnrichPath_Table)
 
+library(pathview)
+
+pathview(gene.data  = GATADominant_Peaks_Enrich$results,
+         pathway.id = "hsa00480", 
+         species    = "hsa",
+         limit      = list(gene = 1, cpd = 1))
