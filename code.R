@@ -662,12 +662,6 @@ BindingPeaks_123456 <- InnerJoin_simpler_fn(BindingPeaks_1234,
                                             BindingPeaks_56)
 
 
-Peaks_NTs <- rowSums(BindingPeaks_123456[, c("score_NT1", 
-                                             "score_NT2", 
-                                             "score_NT3")])
-Peaks_GATAs <- rowSums(BindingPeaks_123456[, c("score_GATA1", 
-                                               "score_GATA2", 
-                                               "score_GATA3")])
 
 
 # Normalizing peak size (compared to read depth)
@@ -697,14 +691,20 @@ Peaks_GATAs <- rowSums(BindingPeaks_123456_norm[, c("score_GATA1",
                                                     "score_GATA2", 
                                                     "score_GATA3")])
 
+ChangeName_fn <- function(DataTable) {
+        
+        names(DataTable) <- c("chrom", "start", "end")
+        return(as.data.frame(DataTable))
+        
+}
 
-GATADominant_Peaks <- BindingPeaks_123456_norm[Peaks_NTs < Peaks_GATAs, 1:3] %>%
-        rename(chrom = seqnames) %>% 
-        as.data.frame()
 
-NTDominant_Peaks <- BindingPeaks_123456_norm[Peaks_NTs > Peaks_GATAs, 1:3] %>%
-        rename(chrom = seqnames) %>% 
-        as.data.frame()
+GATADominant_Peaks <- ChangeName_fn(BindingPeaks_123456_norm[Peaks_NTs < Peaks_GATAs, 
+                                                             1:3])
+
+NTDominant_Peaks <- ChangeName_fn(BindingPeaks_123456_norm[Peaks_NTs > Peaks_GATAs, 
+                                                           1:3])
+
 
 
 ################### Enrichment Test (Inspection)
@@ -728,7 +728,7 @@ DistToTss_NTDominant_Peaks <- plot_dist_to_tss(NTDominant_Peaks,
 
 
 # Relationship btw gene length and presence of peaks
-plot_chipenrich_spline(IncreasedPGATADominant_Peakseaks, 
+plot_chipenrich_spline(GATADominant_Peaks, 
                        genome = "hg19", 
                        locusdef = 'nearest_tss')
 
@@ -765,8 +765,29 @@ NTDominant_Peaks_Enrich <- EnrichPath_fn(NTDominant_Peaks,
 
 # filtering significant pathways
 GATADominant_Peaks_Enrich_SigResult <- subset(GATADominant_Peaks_Enrich$results, 
-                                              FDR <= 0.05)
-NTDominant_Peaks_Enrich_SigResult <- subset(NTDominant_Peaks_Enrich$results, 
-                                            FDR <= 0.05)
+                                              FDR <= 0.05) %>% 
+        mutate(Peak_Category = "More in siGATA")
 
+NTDominant_Peaks_Enrich_SigResult <- subset(NTDominant_Peaks_Enrich$results, 
+                                            FDR <= 0.05) %>%
+        mutate(Peak_Category = "More in siNT")
+
+
+Combined_EnrichPath <- rbind(NTDominant_Peaks_Enrich_SigResult,
+                             GATADominant_Peaks_Enrich_SigResult) %>% 
+        as.data.table()
+
+Combined_EnrichPath_Table <- Combined_EnrichPath[, c("Geneset.ID",
+                                                     "Description",
+                                                     "P.value",
+                                                     "FDR",
+                                                     "Status",
+                                                     "Geneset.Peak.Genes",
+                                                     "Peak_Category")][, FDR := round(FDR, 4)]
+                                                                           
+
+library(formattable)
+
+Combined_EnrichPath_Table_disp <- 
+        formattable(Combined_EnrichPath_Table)
 
