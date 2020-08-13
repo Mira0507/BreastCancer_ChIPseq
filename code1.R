@@ -9,14 +9,14 @@ library(GenomicAlignments)
 ################################## Importing data ##################################
 
 
-chrNum = "chr6"
-START = 132000000
-END = 133000000
+chrNum = "chr7"
+START = 115000000
+END = 117000000
 
 
 
 # Importing BED files
-
+# BED: information about peak locations
 ImportBed_fn <- function(file) {
         import.bed(file, genome = "hg19")
 }
@@ -33,6 +33,7 @@ pk_siGATA3 <- ImportBed_fn("siGATA_ER_E2_r3_SRX176861_peaks.bed")
 
 
 # Importing BAM files
+# BAM: alignment between read sequences and the reference genome in a compressed binary format
 
 ImportBam_fn <- function(file, chr) {
         bam <- readGAlignments(file)
@@ -53,6 +54,8 @@ bm_siGATA3 <- ImportBam_fn("siGATA_ER_E2_r3_SRX176861_sort.bam", chrNum)
 
 library(Gviz)
 library(TxDb.Hsapiens.UCSC.hg19.knownGene)
+library(chromstaR)
+
 
 # Importing blacklisted region
 BlackList <- import.bed("dukeExcludeRegions.bed")
@@ -64,28 +67,37 @@ ax <- GenomeAxisTrack()
 
 
 # Coverage
-
-CT_fn <- function(peak, label) {
-        DataTrack(peak,
+CT_fn <- function(cover, label) {
+        DataTrack(cover,
                   window = 10000,
-                  name = "label", 
+                  name = label, 
                   type = "h")
         
 }
-CoverTrack1 <- CT_fn(pk_siNT1, "coverage1")
-CoverTrack2 <- CT_fn(pk_siGATA1, "coverage2") 
+
+# Importing BAM files to GRanges object        
+GRange_NT3 <- readBamFileAsGRanges("siNT_ER_E2_r3_SRX176860_sort.bam",
+                                   bamindex = "siNT_ER_E2_r3_SRX176860_sort.bam",
+                                   chromosomes = chrNum)
+
+GRange_GATA3 <- readBamFileAsGRanges("siGATA_ER_E2_r3_SRX176861_sort.bam",
+                                   bamindex = "siGATA_ER_E2_r3_SRX176861_sort.bam",
+                                   chromosomes = chrNum)
+
+CoverTrack1 <- CT_fn(GRange_NT3, "cov_NT3")
+CoverTrack2 <- CT_fn(GRange_GATA3, "cov_GATA3") 
 
 
 # Peak 
 PeakTrack1 <- AnnotationTrack(pk_siNT1,
-                              name = "Peaks1")
+                              name = "Pk_NT3")
 PeakTrack2 <- AnnotationTrack(pk_siGATA1,
-                              name = "Peaks2")
+                              name = "Pk_GATA3")
 
 
 # Blacklist 
 Black <- AnnotationTrack(BlackList,
-                         name = "Blacklist")
+                         name = "BL")
 
 # Gene
 # transcriptAnnotation = "symbol", "gene", "transcript", "exon", or "feature"
@@ -108,7 +120,7 @@ plotTracks(list(ideo,
            to = END,  
            chromosome = chrNum,
            background.title = "darkgrey",
-           main = "Chr6:132000000-133000000")
+           main = "Chr7:115000000-117000000")
 
 
 
@@ -458,14 +470,14 @@ DBind_PCA <- dba.plotPCA(DBind,
                          contrast = 1)
 
 # Heatmap: investigating all peaks
-dba.plotHeatmap(DBind, DBA_TREATMENT, correlation = FALSE)
+DBind_Heatmap_All <- dba.plotHeatmap(DBind, DBA_TREATMENT, correlation = FALSE)
 
 # Heatmap: investigating differentially bound peaks
-DBind_Heatmap <- dba.plotHeatmap(DBind, 
-                                 DBA_TREATMENT, 
-                                 correlation = FALSE, 
-                                 contrast = 1,
-                                 main = "Differentially Bound Peaks")
+DBind_Heatmap_Diff <- dba.plotHeatmap(DBind, 
+                                      DBA_TREATMENT, 
+                                      correlation = FALSE, 
+                                      contrast = 1,
+                                      main = "Differentially Bound Peaks")
 
 
 
@@ -775,18 +787,16 @@ EnrichPath_fn <- function(peak_object, geneset) {
 
 # Extracting result tables
 GATADominant_Peaks_Enrich <- EnrichPath_fn(GATADominant_Peaks, 
-                                           "kegg_pathway")
+                                           "GOBP")
 NTDominant_Peaks_Enrich <- EnrichPath_fn(NTDominant_Peaks, 
-                                         "kegg_pathway")
+                                         "GOBP")
 
 # filtering significant pathways
-GATADominant_Peaks_Enrich_SigResult <- subset(GATADominant_Peaks_Enrich$results, 
-                                              FDR <= 0.05) %>% 
-        mutate(Peak_Category = "More in siGATA")
+GATADominant_Peaks_Enrich_SigResult <- GATADominant_Peaks_Enrich$results[1:5, ] %>% 
+        mutate(Dominant_Peaks_in = "siGATA")
 
-NTDominant_Peaks_Enrich_SigResult <- subset(NTDominant_Peaks_Enrich$results, 
-                                            FDR <= 0.05) %>%
-        mutate(Peak_Category = "More in siNT")
+NTDominant_Peaks_Enrich_SigResult <- NTDominant_Peaks_Enrich$results[1:5, ] %>%
+        mutate(Dominant_Peaks_in = "siNT")
 
 
 Combined_EnrichPath <- rbind(NTDominant_Peaks_Enrich_SigResult,
@@ -799,7 +809,7 @@ Combined_EnrichPath_Table <- Combined_EnrichPath[, c("Geneset.ID",
                                                      "FDR",
                                                      "Status",
                                                      "Geneset.Peak.Genes",
-                                                     "Peak_Category")][, FDR := round(FDR, 4)]
+                                                     "Dominant_Peaks_in")][, FDR := round(FDR, 4)]
                                                                            
 
 library(formattable)
