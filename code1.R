@@ -58,7 +58,8 @@ library(chromstaR)
 
 
 # Importing blacklisted region
-BlackList <- import.bed("dukeExcludeRegions.bed")
+BLFilePath <- "consensusBlacklist.bed"
+BlackList <- import.bed(BLFilePath)
 BlackListedOverlap <- findOverlaps(pk_siNT3, BlackList, type = "within")
 
 ideo <- IdeogramTrack(chrNum, "hg19")
@@ -66,7 +67,7 @@ ax <- GenomeAxisTrack()
 
 
 
-# Coverage
+# a function for building a coverage track 
 CT_fn <- function(cover, label) {
         DataTrack(cover,
                   window = 10000,
@@ -75,17 +76,34 @@ CT_fn <- function(cover, label) {
         
 }
 
-# Importing BAM files to GRanges object        
-GRange_NT3 <- readBamFileAsGRanges("siNT_ER_E2_r3_SRX176860_sort.bam",
-                                   bamindex = "siNT_ER_E2_r3_SRX176860_sort.bam",
-                                   chromosomes = chrNum)
+# a function for creating GRanges object from a BAM file
+ConvertToGRanges_fn <- function(BamFile, chromo) {
+        
+        # Creating a GRanges object
+        GR <-  readBamFileAsGRanges(BamFile,
+                                    bamindex = BamFile,
+                                    chromosomes = chromo)
+        
+        # Converting strand data
+        GR@strand@values <- rep("*", 
+                                times = length(GR@strand@values))
+        
+        return(GR)
+}
 
-GRange_GATA3 <- readBamFileAsGRanges("siGATA_ER_E2_r3_SRX176861_sort.bam",
-                                   bamindex = "siGATA_ER_E2_r3_SRX176861_sort.bam",
-                                   chromosomes = chrNum)
 
+# GRanges objects
+GRange_NT3 <- ConvertToGRanges_fn("siNT_ER_E2_r3_SRX176860_sort.bam", 
+                                  chrNum)
+
+GRange_GATA3 <- ConvertToGRanges_fn("siGATA_ER_E2_r3_SRX176861_sort.bam", 
+                                    chrNum)
+
+
+# coverage tracks
 CoverTrack1 <- CT_fn(GRange_NT3, "cov_NT3")
 CoverTrack2 <- CT_fn(GRange_GATA3, "cov_GATA3") 
+
 
 
 # Peak 
@@ -119,6 +137,7 @@ plotTracks(list(ideo,
            from = START,
            to = END,  
            chromosome = chrNum,
+           type = "heatmap",
            background.title = "darkgrey",
            main = "Chr7:115000000-117000000")
 
@@ -178,7 +197,7 @@ sample_meta <- data.frame(
 sample_exp <- ChIPQC(experiment = sample_meta, 
                      annotation = "hg19",
                      chromosomes = chrNum,
-                     blacklist = "dukeExcludeRegions.bed")
+                     blacklist = BLFilePath)
 
 ChIPQCreport(sample_exp, facetBy = "Treatment")
 
