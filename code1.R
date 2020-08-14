@@ -193,7 +193,7 @@ sample_meta <- data.frame(
         PeakCaller = "macs")
 
 
-# creating GC report for chromosome 6
+# creating GC report for chromosome 7
 sample_exp <- ChIPQC(experiment = sample_meta, 
                      annotation = "hg19",
                      chromosomes = chrNum,
@@ -206,10 +206,14 @@ QC_Plot_fn <- function(object, tit) {
                 ggtitle(tit)
 }
 
+
+# Coverage Histogram
 CoverageHisto <- QC_Plot_fn(plotCoverageHist(sample_exp, 
                                              facetBy = "Treatment"), 
                             "Coverage Histogram")
 
+
+# cross-coverage
 CrossCoverage <- QC_Plot_fn(plotCC(sample_exp, 
                                    facetBy = "Treatment"), 
                             "Cross Coverage")
@@ -217,6 +221,9 @@ CrossCoverage <- QC_Plot_fn(plotCC(sample_exp,
 library(gridExtra)
 grid.arrange(CoverageHisto, CrossCoverage)
 
+
+
+# Relative Enrichment: where are the reads enriched? 
 RelativeEnrichment <- QC_Plot_fn(plotRegi(sample_exp, 
                                           facetBy = "Treatment"), 
                                  "Relative Enrichment") + 
@@ -226,21 +233,31 @@ RelativeEnrichment <- QC_Plot_fn(plotRegi(sample_exp,
                                          size = 11),
               axis.text.y = element_text(size = 11))
 
+
+# Peak Profiles: centered signal of peaks
 PeakProfiles <- QC_Plot_fn(plotPeakProfile(sample_exp, 
                                            facetBy = "Treatment"), 
                            "Peak Profiles")
 
+
+# Number of reads overlapping peaks
 ReadsOverlappingPeaks <- QC_Plot_fn(plotRap(sample_exp, 
                                             facetBy = "Treatment"), 
                                     "Reads Overlapping Peaks") 
 
+
+# % of reads overlapping blacklist
 ReadsOverlappingBlacklist <- QC_Plot_fn(plotFribl(sample_exp, 
                                             facetBy = "Treatment"), 
                                     "Reads Overlapping Blacklist")
 
+
+# correlation of read quality across the samples
 CorrelationHeatmap <- plotCorHeatmap(sample_exp, 
                                     attributes = "Treatment")
 
+
+# PCA with read quality across the samples
 SamplePCA <- plotPrincomp(sample_exp, 
                     attributes = "Treatment")
 
