@@ -482,7 +482,7 @@ grid.arrange(coverage_plot,
 
 library(DiffBind)
 
-#################### Analysis
+#################### Running Analysis
 
 # Creating a dba object (counting reads in a peak set)
 PeakCounts <- dba.count(sample_exp, summit = 250)
@@ -560,36 +560,33 @@ for (i in 1:6) {
 ####################### Investigating Overlapping peaks
 
 
-# Find overlapping peaks 
-# findOverlapsOfPeaks function only accepts 4 GRanges objects maximum
-OverlappingPeaks1 <- findOverlapsOfPeaks(PCalls[[1]],
-                                         PCalls[[2]],
-                                         PCalls[[4]],
-                                         PCalls[[5]],
-                                         maxgap = 50)
+PeakLocation_fn <- function(PC1, PC2, AnnotatedGenes) {
+        
+        # Find overlapping peaks 
+        # findOverlapsOfPeaks function only accepts 4 GRanges objects maximum
+        OvPeaks <- findOverlapsOfPeaks(PC1,
+                                       PC2,
+                                       maxgap = 50)
+        
+        # Getting merged peaks
+        OvPeaks_merged <- OvPeaks$mergedPeaks
+        
+        # annotating overlapping peaks
+        OvPeaks_annotated <- 
+                annoPeaks(OvPeaks_merged, 
+                          AnnotatedGenes, 
+                          bindingType = "startSite",
+                          bindingRegion = c(-5000, 5000))  
+        
+        return(OvPeaks_annotated$insideFeature)
+        
+}
 
-OverlappingPeaks2 <- findOverlapsOfPeaks(PCalls[[2]],
-                                         PCalls[[3]],
-                                         PCalls[[5]],
-                                         PCalls[[6]],
-                                         maxgap = 50)
+# Getting a vector of peak location 
+AnnoPeaks1 <- PeakLocation_fn(PCalls[[1]], PCalls[[4]], genes)
+AnnoPeaks2 <- PeakLocation_fn(PCalls[[2]], PCalls[[5]], genes)
+AnnoPeaks3 <- PeakLocation_fn(PCalls[[3]], PCalls[[6]], genes)
 
-# Getting merged peaks
-OverlappingPeaks1_merged <- OverlappingPeaks1$mergedPeaks
-OverlappingPeaks2_merged <- OverlappingPeaks2$mergedPeaks
-
-# annotating overlapping peaks
-OverlappingPeaks1_anno <- 
-        annoPeaks(OverlappingPeaks1_merged, 
-                  genes, 
-                  bindingType = "startSite",
-                  bindingRegion = c(-5000, 5000))  
-
-OverlappingPeaks2_anno <- 
-        annoPeaks(OverlappingPeaks2_merged, 
-                  genes, 
-                  bindingType = "startSite",
-                  bindingRegion = c(-5000, 5000))  
 
 # location of the peak relative to the gene
 MakeTable_fn <- function(feature, replic) {
@@ -599,25 +596,31 @@ MakeTable_fn <- function(feature, replic) {
         return(df)
 }
 
-PeakLocation <- rbind(MakeTable_fn(OverlappingPeaks1_anno$insideFeature, 
-                                   "1/2/4/5"),
-                      MakeTable_fn(OverlappingPeaks2_anno$insideFeature, 
-                                   "2/3/5/6")) %>%
+PeakLocation <- rbind(MakeTable_fn(AnnoPeaks1, 
+                                   "1"),
+                      MakeTable_fn(AnnoPeaks2, 
+                                   "2"),
+                      MakeTable_fn(AnnoPeaks3, 
+                                   "3")) %>%
         mutate(Proportion = round(Proportion, digits = 2))
 
 
+
 # statistical illustration of peak location relative to the gene
+library(RColorBrewer)
 PeakLocationPlot <- 
         ggplot(PeakLocation, aes(x = Features,
                                  y = Proportion,
                                  fill = Replicates)) + 
         geom_bar(stat = "identity", 
-                 position = "dodge") + 
+                 position = "dodge",
+                 color = "black") + 
         theme_bw() + 
         ggtitle("Peak Location Relative to Each Gene") + 
         xlab("Peak Location") + 
         theme(axis.text.x = element_text(size = 11),
-              legend.text = element_text(size = 11))
+              legend.text = element_text(size = 11)) + 
+        scale_fill_brewer(palette = "Spectral")
 
 
 
